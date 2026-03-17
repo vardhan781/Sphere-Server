@@ -246,6 +246,7 @@ export const getAllUsersForChat = async (req, res) => {
 export const getFollowers = async (req, res) => {
   try {
     const userId = req.params.id;
+    const currentUserId = req.user._id;
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: "Invalid user id" });
@@ -259,7 +260,16 @@ export const getFollowers = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.json(user.followers);
+    const currentUser = await User.findById(currentUserId).select("following");
+
+    const formattedFollowers = user.followers.map((follower) => ({
+      ...follower,
+      isFollowing: currentUser.following.some(
+        (id) => id.toString() === follower._id.toString(),
+      ),
+    }));
+
+    res.json(formattedFollowers);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch followers" });
   }
@@ -268,6 +278,7 @@ export const getFollowers = async (req, res) => {
 export const getFollowing = async (req, res) => {
   try {
     const userId = req.params.id;
+    const currentUserId = req.user._id;
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: "Invalid user id" });
@@ -281,7 +292,16 @@ export const getFollowing = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.json(user.following);
+    const currentUser = await User.findById(currentUserId).select("following");
+
+    const formattedFollowing = user.following.map((followedUser) => ({
+      ...followedUser,
+      isFollowing: currentUser.following.some(
+        (id) => id.toString() === followedUser._id.toString(),
+      ),
+    }));
+
+    res.json(formattedFollowing);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch following users" });
   }
