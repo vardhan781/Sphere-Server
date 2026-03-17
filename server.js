@@ -38,16 +38,52 @@ const io = new Server(server, {
   },
 });
 
-io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+const onlineUsers = new Map();
 
+io.on("connection", (socket) => {
   socket.on("join", (userId) => {
     socket.join(userId);
-    console.log("User joined room:", userId);
+    onlineUsers.set(userId, socket.id);
+
+    socket.broadcast.emit("user online", { userId });
+  });
+
+  socket.on("join chat", (conversationId) => {
+    socket.join(conversationId);
+  });
+
+  socket.on("typing", (conversationId) => {
+    socket.to(conversationId).emit("user typing", {
+      conversationId,
+      isTyping: true,
+    });
+  });
+
+  socket.on("stop typing", (conversationId) => {
+    socket.to(conversationId).emit("user typing", {
+      conversationId,
+      isTyping: false,
+    });
+  });
+
+  socket.on("check online", (userId) => {
+    const isOnline = onlineUsers.has(userId);
+
+    socket.emit("user online", {
+      userId,
+      isOnline,
+    });
   });
 
   socket.on("disconnect", () => {
-    console.log("User disconnected");
+    for (let [userId, sockId] of onlineUsers.entries()) {
+      if (sockId === socket.id) {
+        onlineUsers.delete(userId);
+
+        socket.broadcast.emit("user offline", { userId });
+        break;
+      }
+    }
   });
 });
 
