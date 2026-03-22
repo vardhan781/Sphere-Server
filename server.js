@@ -42,10 +42,14 @@ const onlineUsers = new Map();
 
 io.on("connection", (socket) => {
   socket.on("join", (userId) => {
+    socket.userId = userId;
     socket.join(userId);
     onlineUsers.set(userId, socket.id);
 
-    socket.broadcast.emit("user online", { userId });
+    socket.broadcast.emit("presence update", {
+      userId,
+      isOnline: true,
+    });
   });
 
   socket.on("join chat", (conversationId) => {
@@ -69,20 +73,22 @@ io.on("connection", (socket) => {
   socket.on("check online", (userId) => {
     const isOnline = onlineUsers.has(userId);
 
-    socket.emit("user online", {
+    socket.emit("online status", {
       userId,
       isOnline,
     });
   });
 
   socket.on("disconnect", () => {
-    for (let [userId, sockId] of onlineUsers.entries()) {
-      if (sockId === socket.id) {
-        onlineUsers.delete(userId);
+    const userId = socket.userId;
 
-        socket.broadcast.emit("user offline", { userId });
-        break;
-      }
+    if (userId && onlineUsers.get(userId) === socket.id) {
+      onlineUsers.delete(userId);
+
+      socket.broadcast.emit("presence update", {
+        userId,
+        isOnline: false,
+      });
     }
   });
 });
